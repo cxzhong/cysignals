@@ -1,10 +1,10 @@
 [build-system]
-requires = ["meson-python", "cython>=0.28"]
+requires = ["meson-python", "cython>=3.1"]
 build-backend = "mesonpy"
 
 [project]
 name = "cysignals"
-version = "1.12.5"
+dynamic = ["version"]
 description = "Interrupt and signal handling for Cython"
 license = { file = "LICENSE" }
 readme = { file = "README.rst", content-type = "text/x-rst" }
@@ -20,17 +20,16 @@ classifiers = [
     "Programming Language :: C",
     "Programming Language :: Cython",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: System",
     "Topic :: Software Development :: Debuggers",
 ]
 urls = { Homepage = "https://github.com/sagemath/cysignals" }
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.12"
 
 [project.entry-points.pkg_config]
 cysignals = 'cysignals'
@@ -52,7 +51,8 @@ dev = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*-win32"]
+enable = ["cpython-freethreading"]
+skip = ["*-win32", "cp313t-*"]
 test-groups = ["dev"]
 test-sources = ["tests", "pyproject.toml"]
 test-command = "python -m pytest"
