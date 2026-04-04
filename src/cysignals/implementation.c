@@ -852,7 +852,7 @@ dienow:
 /*
  * Set message, return 0 if we need to cysetjmp(), return 1 otherwise.
  */
-static int _sig_on_prejmp(const char* message, CYTHON_UNUSED const char* file, CYTHON_UNUSED int line)
+static inline int _sig_on_prejmp(const char* message, CYTHON_UNUSED const char* file, CYTHON_UNUSED int line)
 {
     cysigs.s = message;
 #if ENABLE_DEBUG_CYSIGNALS
@@ -884,7 +884,7 @@ static int _sig_on_prejmp(const char* message, CYTHON_UNUSED const char* file, C
  * Process the return value of cysetjmp().
  * Return 0 if there was an exception, 1 otherwise.
  */
-static int _sig_on_postjmp(int jmpret)
+static inline int _sig_on_postjmp(int jmpret)
 {
     if (unlikely(jmpret > 0))
     {
@@ -913,7 +913,7 @@ static int _sig_on_postjmp(int jmpret)
 /*
  * Implementation of sig_off().
  */
-static void _sig_off_(const char* file, int line)
+static inline void _sig_off_(const char* file, int line)
 {
 #if ENABLE_DEBUG_CYSIGNALS
     if (cysigs.debug_level >= 4)
@@ -934,7 +934,7 @@ static void _sig_off_(const char* file, int line)
 }
 
 
-static void _sig_unblock_(void)
+static inline void _sig_unblock_(void)
 {
 #if ENABLE_DEBUG_CYSIGNALS
     if (cysigs.block_sigint < 1)
@@ -976,7 +976,7 @@ static void _sig_error_(void)
 }
 
 
-static int _set_debug_level(int level)
+static inline int _set_debug_level(int level)
 {
 #if ENABLE_DEBUG_CYSIGNALS
     int old = cysigs.debug_level;
