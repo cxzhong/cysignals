@@ -1,4 +1,3 @@
-# cython: preliminary_late_includes_cy28=True
 #*****************************************************************************
 #  cysignals is free software: you can redistribute it and/or modify it
 #  under the terms of the GNU Lesser General Public License as published
@@ -32,6 +31,9 @@ cdef extern from "struct_signals.h":
 
 
 cdef extern from "macros.h" nogil:
+    # These are all macros defined in macros.h.
+    # The macros expand at the C call site, where capsule symbols
+    # (cysigs, _sig_on_prejmp, etc.) are already declared.
     int sig_on() except 0
     int sig_str(const char*) except 0
     int sig_check() except 0
@@ -84,9 +86,11 @@ cdef inline PyObject* sig_occurred() noexcept:
     return cysigs.exc_value
 
 
-# Variables and functions which are implemented in implementation.c
-# and used by macros.h. We use the Cython cimport mechanism to make
-# these available to every Cython module cimporting this file.
+# Variables and functions which are implemented in implementation.c.
+# We use the Cython capsule mechanism to make these available to every
+# Cython module cimporting this file.  The capsule mechanism provides
+# #define / function pointers that are resolved at import time, so no
+# linking against signals.so is needed.
 cdef nogil:
     cysigs_t cysigs "cysigs"
     void _sig_on_interrupt_received "_sig_on_interrupt_received"() noexcept
@@ -94,6 +98,17 @@ cdef nogil:
     void _do_raise_exception "_do_raise_exception"(int sig) noexcept
     void _sig_off_warning "_sig_off_warning"(const char*, int) noexcept
     void print_backtrace "print_backtrace"() noexcept
+
+    # Former inline functions from macros.h, now regular functions
+    # in implementation.c.  Shared via capsules so the macros in
+    # macros.h can call them at the expansion site.
+    int _sig_on_prejmp "_sig_on_prejmp"(const char*, const char*, int) noexcept
+    int _sig_on_postjmp "_sig_on_postjmp"(int) noexcept
+    void _sig_off_ "_sig_off_"(const char*, int) noexcept
+    void _sig_unblock_ "_sig_unblock_"() noexcept
+    void _sig_retry_ "_sig_retry_"() noexcept
+    void _sig_error_ "_sig_error_"() noexcept
+    int _set_debug_level "_set_debug_level"(int) noexcept
 
 
 cdef inline void __generate_declarations() noexcept:
@@ -103,3 +118,10 @@ cdef inline void __generate_declarations() noexcept:
     _do_raise_exception
     _sig_off_warning
     print_backtrace
+    _sig_on_prejmp
+    _sig_on_postjmp
+    _sig_off_
+    _sig_unblock_
+    _sig_retry_
+    _sig_error_
+    _set_debug_level

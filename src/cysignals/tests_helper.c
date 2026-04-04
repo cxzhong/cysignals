@@ -139,9 +139,6 @@ static void signals_after_delay(int signum, long ms, long interval, int n)
         /* New process group to prevent us getting the signals. */
         setpgid(0,0);
 
-        /* Unblock SIGINT (to fix a warning when testing sig_block()) */
-        cysigs.block_sigint = 0;
-
         /* Make sure SIGTERM simply terminates the process */
         signal(SIGTERM, SIG_DFL);
 

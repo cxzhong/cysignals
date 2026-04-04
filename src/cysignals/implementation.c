@@ -29,6 +29,7 @@ Interrupt and signal handling for Cython
 
 
 #include "config.h"
+#include <Python.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -52,7 +53,6 @@ Interrupt and signal handling for Cython
 #if HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>
 #endif
-#include <Python.h>
 
 // Custom signal handling of other packages.
 #define MAX_N_CUSTOM_HANDLERS 16
@@ -824,7 +824,172 @@ dienow:
     exit(128 + sig);
 }
 
-/* Finally include the macros and inline functions for use in
- * signals.pyx. These require some of the above functions, therefore
- * this include must come at the end of this file. */
+/**********************************************************************
+ * Functions formerly defined as static inline in macros.h.           *
+ * Moved here so that macros.h contains only #define macros.          *
+ * These are shared across modules via Cython's capsule mechanism.    *
+ **********************************************************************/
+
+/* unlikely() is defined by Cython, but it may not be available yet
+ * when implementation.c is processed (early include). */
+#ifndef unlikely
+#ifdef __GNUC__
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define unlikely(x) (x)
+#endif
+#endif
+
+/* proc_raise is defined in macros.h, but may not be included yet */
+#ifndef proc_raise
+#if HAVE_KILL
+#define proc_raise(sig)  kill(getpid(), sig)
+#else
+#define proc_raise(sig)  raise(sig)
+#endif
+#endif
+
+/*
+ * Set message, return 0 if we need to cysetjmp(), return 1 otherwise.
+ */
+static int _sig_on_prejmp(const char* message, CYTHON_UNUSED const char* file, CYTHON_UNUSED int line)
+{
+    cysigs.s = message;
+#if ENABLE_DEBUG_CYSIGNALS
+    if (cysigs.debug_level >= 4)
+    {
+        fprintf(stderr, "sig_on (count = %i) at %s:%i\n",
+                (int)cysigs.sig_on_count+1, file, line);
+        fflush(stderr);
+    }
+    if (cysigs.block_sigint && cysigs.sig_on_count <= 0)
+    {
+        fprintf(stderr, "\n*** ERROR *** sig_on() with sig_on_count = %i, block_sigint = %i\n",
+                (int)cysigs.sig_on_count, (int)cysigs.block_sigint);
+        print_backtrace();
+    }
+#endif
+    if (cysigs.sig_on_count > 0)
+    {
+        cysigs.sig_on_count++;
+        return 1;
+    }
+
+    /* At this point, cysigs.sig_on_count == 0 */
+    return 0;
+}
+
+
+/*
+ * Process the return value of cysetjmp().
+ * Return 0 if there was an exception, 1 otherwise.
+ */
+static int _sig_on_postjmp(int jmpret)
+{
+    if (unlikely(jmpret > 0))
+    {
+        /* A signal occurred and we jumped back via longjmp.
+         * jmpret contains the signal number that was passed to siglongjmp. */
+        _do_raise_exception(jmpret);
+        _sig_on_recover();
+        return 0;
+    }
+
+    /* When we are here, it's either the original sig_on() call or we
+     * got here after sig_retry(). */
+    cysigs.sig_on_count = 1;
+
+    /* Check whether we received an interrupt before this point. */
+    if (unlikely(cysigs.interrupt_received))
+    {
+        _sig_on_interrupt_received();
+        return 0;
+    }
+
+    return 1;
+}
+
+
+/*
+ * Implementation of sig_off().
+ */
+static void _sig_off_(const char* file, int line)
+{
+#if ENABLE_DEBUG_CYSIGNALS
+    if (cysigs.debug_level >= 4)
+    {
+        fprintf(stderr, "sig_off (count = %i) at %s:%i\n",
+                (int)cysigs.sig_on_count, file, line);
+        fflush(stderr);
+    }
+#endif
+    if (unlikely(cysigs.sig_on_count <= 0))
+    {
+        _sig_off_warning(file, line);
+    }
+    else
+    {
+        --cysigs.sig_on_count;
+    }
+}
+
+
+static void _sig_unblock_(void)
+{
+#if ENABLE_DEBUG_CYSIGNALS
+    if (cysigs.block_sigint < 1)
+    {
+        fprintf(stderr, "\n*** ERROR *** sig_unblock() with sig_on_count = %i, block_sigint = %i\n",
+                (int)cysigs.sig_on_count, (int)cysigs.block_sigint);
+        print_backtrace();
+    }
+#endif
+    --cysigs.block_sigint;
+
+    if (unlikely(cysigs.interrupt_received))
+        /* Re-raise the signal if we can handle it now */
+        if (cysigs.sig_on_count > 0 && cysigs.block_sigint == 0)
+            proc_raise(cysigs.interrupt_received);
+}
+
+
+static void _sig_retry_(void)
+{
+    /* If we're outside of sig_on(), we can't jump, so we can only bail
+     * out */
+    if (unlikely(cysigs.sig_on_count <= 0))
+    {
+        fprintf(stderr, "sig_retry() without sig_on()\n");
+        proc_raise(SIGABRT);
+    }
+    cylongjmp(cysigs.env, -1);
+}
+
+
+static void _sig_error_(void)
+{
+    if (unlikely(cysigs.sig_on_count <= 0))
+    {
+        fprintf(stderr, "sig_error() without sig_on()\n");
+    }
+    proc_raise(SIGABRT);
+}
+
+
+static int _set_debug_level(int level)
+{
+#if ENABLE_DEBUG_CYSIGNALS
+    int old = cysigs.debug_level;
+    cysigs.debug_level = level;
+    return old;
+#else
+    if (level == 0)
+        return 0;    /* 0 is the only valid debug level */
+    else
+        return -1;   /* Error */
+#endif
+}
+
+
+/* Finally include the macros for use in signals.pyx. */
 #include "macros.h"

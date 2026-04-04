@@ -1,5 +1,4 @@
 # cython: freethreading_compatible = True
-# cython: preliminary_late_includes_cy28=True
 r"""
 Interrupt and signal handling
 
@@ -59,6 +58,14 @@ cdef extern from "implementation.c":
     void _sig_on_recover() nogil
     void _do_raise_exception(int sig) nogil
     void _sig_off_warning(const char*, int) nogil
+
+    # Former inline functions from macros.h, now in implementation.c
+    int _sig_on_prejmp(const char*, const char*, int) nogil
+    int _sig_on_postjmp(int) nogil
+    void _sig_off_(const char*, int) nogil
+    void _sig_unblock_() nogil
+    void _sig_retry_() nogil
+    void _sig_error_() nogil
 
     # Python library functions for raising exceptions without "except"
     # clause.
