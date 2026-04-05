@@ -99,9 +99,9 @@ cdef nogil:
     void _sig_off_warning "_sig_off_warning"(const char*, int) noexcept
     void print_backtrace "print_backtrace"() noexcept
 
-    # Former inline functions from macros.h, now regular functions
-    # in implementation.c.  Shared via capsules so the macros in
-    # macros.h can call them at the expansion site.
+    # Former inline functions from macros.h, now helper functions
+    # defined in implementation.c.  Shared via capsules so the macros
+    # in macros.h can call them at the expansion site.
     int _sig_on_prejmp "_sig_on_prejmp"(const char*, const char*, int) noexcept
     int _sig_on_postjmp "_sig_on_postjmp"(int) noexcept
     void _sig_off_ "_sig_off_"(const char*, int) noexcept
