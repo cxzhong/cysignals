@@ -49,5 +49,8 @@ foreach name, pyx : extensions
         dependencies: [py_dep, threads_dep],
         install: true,
         subdir: 'cysignals',
+        # Disable sanity checking in GNU libc
+        # This is required because of false positives in the longjmp() check
+        c_args: name == 'signals' ? ['-U_FORTIFY_SOURCE'] : [],
     )
 endforeach
